@@ -1,3 +1,3 @@
-from pymap.dispatcher import Scanner
+from pymap.dispatcher import ScannerHandler
 
-__all__ = ['Scanner']
+__all__ = ['ScannerHandler']

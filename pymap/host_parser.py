@@ -25,7 +25,7 @@ class HostDefParserSubnet(HostDefParser):
         self.properties = ['ip', 'mask']
         super(HostDefParserSubnet, self).__init__(definition)
 
-        self.hosts = [str(ip) for ip in list(netaddr.IPNetwork('{0}/{1}'.format(self.definition.get('ip'), self.definition.get('mask'))))]
+        self.hosts = [Host(ip) for ip in list(netaddr.IPNetwork('{0}/{1}'.format(self.definition.get('ip'), self.definition.get('mask'))))]
 
 
 class HostDefParserRange(HostDefParser):
@@ -33,7 +33,7 @@ class HostDefParserRange(HostDefParser):
         self.properties = ['start', 'end']
         super(HostDefParserRange, self).__init__(definition)
 
-        self.hosts = [str(ip) for ip in list(netaddr.iter_iprange(self.definition.get('start'), self.definition.get('end')))]
+        self.hosts = [Host(ip) for ip in list(netaddr.iter_iprange(self.definition.get('start'), self.definition.get('end')))]
 
 
 class HostDefParserList(HostDefParser):
@@ -41,7 +41,12 @@ class HostDefParserList(HostDefParser):
         self.properties = ['list']
         super(HostDefParserList, self).__init__(definition)
 
-        self.hosts = [str(netaddr.IPAddress(ip)) for ip in self.definition.get('list')]
+        self.hosts = [Host(ip) for ip in self.definition.get('list')]
+
+
+class Host(object):
+    def __init__(self, ip):
+        self.ip = netaddr.IPAddress(ip)
 
 
 
