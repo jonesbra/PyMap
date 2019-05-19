@@ -1,1 +1,6 @@
 input-files
+bin
+include
+lib
+.Python
+__pycache__
