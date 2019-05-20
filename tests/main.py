@@ -10,4 +10,9 @@ with open('../input-files/hosts.json', 'r') as f:
 
 scanner = ScannerHandler(host_defs)
 scanner.scan()
-print (scanner.get_dict())
+data = scanner.get_dict()
+
+print (json.dumps(scanner.get_dict(), indent=4))
+
+with open('./out.json', 'w') as f:
+    f.write(json.dumps(scanner.get_dict(), indent=4))

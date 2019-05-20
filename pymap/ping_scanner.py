@@ -12,7 +12,7 @@ class PingScannerDarwin(PingScanner):
         super(PingScannerDarwin, self).__init__(hosts)
 
     def scan_host(self, host):
-        cmd = ' '.join(['ping', '-c', '3', '-W', '3', str(host.ip)])
+        cmd = ' '.join(['ping', '-c', '3', '-W', '1', str(host.ip)])
         try:
             out = subprocess.check_output(cmd, shell=True)
             setattr(host, 'pingable', True)

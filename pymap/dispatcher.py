@@ -20,8 +20,14 @@ class Scanner(object):
         self.hosts = [host for d in host_defs for host in HostDefParserHandler(d)(d).hosts]
 
     def get_dict(self):
-        return {'hosts': [{'ip': str(host.ip)} for host in self.hosts]}
-
+        response = {'hosts': list()}
+        for host in self.hosts:
+            entry = dict()
+            entry['ip'] = str(host.ip)
+            entry['pingable'] = host.pingable
+            entry['state'] = 'up' if host.pingable or len(host.ports) > 0 else 'down'
+            response['hosts'].append(entry)
+        return response
 
 class NMapScanner(Scanner):
     def __init__(self, host_defs=list()):
@@ -59,7 +65,7 @@ class PyMapScanner(Scanner):
         self.tcpScanner.scan()
 
     def get_dict(self):
-        super(PyMapScanner, self).get_dict()
+        return super(PyMapScanner, self).get_dict()
 
 
 ScannerMap = {

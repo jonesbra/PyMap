@@ -49,7 +49,6 @@ class Host(object):
         self.ip = netaddr.IPAddress(ip)
 
 
-
 HostDefParserMap = {
     'subnet': HostDefParserSubnet,
     'range': HostDefParserRange,
