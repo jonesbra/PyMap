@@ -28,9 +28,10 @@ class PyMap():
         """Populate the scan results."""
         transport = NetboxTransport(self.config.netbox_url, self.config.netbox_token)
         site = Site(transport, self.config.site.get('name'), self.config.site.get('description'))
+
         for host in self.nmap_hosts:
             if host.is_up():
-                print('=' * 30 + host.address + '=' * 30)
+                print('\n' + '=' * 30 + host.address + '=' * 30)
                 manufacturer = Manufacturer(transport, host.pymap_os.vendor)
 
                 device_type = DeviceType(transport, host.pymap_os.osfamily, manufacturer,
@@ -46,3 +47,23 @@ class PyMap():
                                 site, host.address)
 
                 self.netbox_hosts.append(device)
+
+    def populate_scan_old(self):
+        """Populate the scan results."""
+        transport = NetboxTransport(self.config.netbox_url, self.config.netbox_token)
+        site = Site(transport, self.config.site.get('name'), self.config.site.get('description'))
+        print('=' * 30 + '150.136.204.164' + '=' * 30)
+        manufacturer = Manufacturer(transport, 'Cisco')
+
+        device_type = DeviceType(transport, 'IOS', manufacturer, 'IOS')
+
+        device_role = DeviceRole(transport, 'router')
+
+        scraper = Scraper('150.136.204.164', self.config.ssh_username, self.config.ssh_password,
+                          get_netmiko_device_type('Cisco',
+                                                  'IOS'))
+
+        device = Device(transport, 'csr1', device_type, device_role,
+                        site, '150.136.204.164')
+
+        self.netbox_hosts.append(device)

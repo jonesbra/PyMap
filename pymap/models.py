@@ -22,26 +22,19 @@ class NetboxTransport():
     def post(self, obj):
         """Post the object to Netbox instance."""
         print('- Issuing POST: ' + self.url + obj.api_route)
-        print('\tData:')
-        print(obj.dict_repr())
-        print('\n')
         response = requests.post(self.url + obj.api_route, json=obj.dict_repr(),
                                  headers=self.headers)
-        print('Response:')
-        print(response.json())
-        print('\n')
         for key, value in response.json().items():
             if key not in CLASS_MAPPER:
                 obj.repr[key] = value
         time.sleep(3)
         obj.alive = True
+        return response
 
     def get(self, obj):
         """Get the object's URL from Netbox instance."""
         print('- Issuing GET: ' + self.url + obj.api_route)
         response = requests.get(self.url + obj.api_route, headers=self.headers)
-        print('Response:')
-        print(response.json())
         return response
 
 
@@ -67,7 +60,10 @@ class NetboxObject():
         for key, value in self.repr.items():
             if key in CLASS_MAPPER:
                 # Must get the ID value of other Netbox Objects.
-                response[key] = self.repr.get(key).get_id()
+                if isinstance(self.repr[key], dict):
+                    response[key] = self.repr[key].get('id')
+                else:
+                    response[key] = self.repr.get(key).get_id()
             else:
                 response[key] = value
         return json.dumps(response)
@@ -86,26 +82,21 @@ class NetboxObject():
         """Determine if device is already alive on Netbox."""
         print('- Determining if {} object already lives on Netbox.'.format(type(self).__name__))
         response = self.transport.get(self)
-        if isinstance(response.json().get('results'), list):
-            # Determine if all object properties already exist in some object in response.
-            for response_obj in response.json().get('results'):
-                print('Comparing response with self')
-                print('Response: ')
-                print(response_obj)
-                print('\n')
-                print('Self:')
-                print(self.dict_repr())
-                print('\n')
-                if all(item in response_obj.items() for item in self.dict_repr().items()):
-                    print('- Self is a subset of response.')
-                    self.repr = response_obj
-                    self.alive = True
+        if response.json().get('results'):
+            for obj in response.json().get('results'):
+                if all(item in obj.items() for item in self.repr.items()):
+                    print('- {} already exists on Netbox.'.format(type(self).__name__))
+                    self.repr = obj
                 else:
-                    print('- Self is NOT a subset of response.')
-        if not self.alive:
-            print('- Object isnt currently alive on Netbox.')
-            self.transport.post(self)
+                    self.create()
+        else:
+            self.create()
+        self.alive = True
 
+    def create(self):
+        print('- Creating {} on Netbox.'.format(type(self).__name__))
+        post_reponse = self.transport.post(self)
+        self.repr = post_reponse.json()
 
 class Device(NetboxObject):
     """Class representation of a Netbox Device."""
@@ -120,6 +111,31 @@ class Device(NetboxObject):
         }
         super().__init__(transport, representation, '/dcim/devices/')
 
+    def validate_alive(self):
+        """Determine if device is already alive on Netbox."""
+        print('- Determining if {} object already lives on Netbox.'.format(type(self).__name__))
+        response = self.transport.get(self)
+        if response.json().get('results'):
+            for obj in response.json().get('results'):
+                tmp_obj = self.repr.copy()
+                del tmp_obj['device_type']
+                del tmp_obj['device_role']
+                del tmp_obj['primary_ip']
+                del tmp_obj['site']
+
+                if all(item in obj.items() for item in tmp_obj.items()):
+                    print('- {} already exists on Netbox.'.format(type(self).__name__))
+                    obj['device_type'] = self.repr['device_type']
+                    obj['device_role'] = self.repr['device_role']
+                    obj['primary_ip'] = self.repr['primary_ip']
+                    obj['site'] = self.repr['site']
+                    self.repr = obj
+                else:
+                    self.create()
+        else:
+            self.create()
+        self.alive = True
+
 
 class DeviceType(NetboxObject):
     """Class representation of a Netbox Device Type."""
@@ -132,6 +148,25 @@ class DeviceType(NetboxObject):
         }
         super().__init__(transport, representation, '/dcim/device-types/')
 
+    def validate_alive(self):
+        """Determine if device is already alive on Netbox."""
+        print('- Determining if {} object already lives on Netbox.'.format(type(self).__name__))
+        response = self.transport.get(self)
+        if response.json().get('results'):
+            for obj in response.json().get('results'):
+                tmp_obj = self.repr.copy()
+                del tmp_obj['manufacturer']
+                del tmp_obj['display_name']
+                if all(item in obj.items() for item in tmp_obj.items()):
+                    print('- {} already exists on Netbox.'.format(type(self).__name__))
+                    obj['manufacturer'] = self.repr.get('manufacturer')
+                    self.repr = obj
+                else:
+                    self.create()
+        else:
+            self.create()
+        self.alive = True
+
 
 class DeviceRole(NetboxObject):
     """Class representation of a Netbox Device Role."""
@@ -142,6 +177,23 @@ class DeviceRole(NetboxObject):
             'color': "%06x" % random.randint(0, 0xFFFFFF)
         }
         super().__init__(transport, representation, '/dcim/device-roles/')
+
+    def validate_alive(self):
+        """Determine if device is already alive on Netbox."""
+        print('- Determining if {} object already lives on Netbox.'.format(type(self).__name__))
+        response = self.transport.get(self)
+        if response.json().get('results'):
+            for obj in response.json().get('results'):
+                tmp_obj = self.repr.copy()
+                del tmp_obj['color']
+                if all(item in obj.items() for item in tmp_obj.items()):
+                    print('- {} already exists on Netbox.'.format(type(self).__name__))
+                    self.repr = obj
+                else:
+                    self.create()
+        else:
+            self.create()
+        self.alive = True
 
 
 class Site(NetboxObject):
@@ -163,7 +215,6 @@ class Manufacturer(NetboxObject):
             'slug': name
         }
         super().__init__(transport, representation, '/dcim/manufacturers/')
-
 
 CLASS_MAPPER = {
     'device_type': DeviceType,
