@@ -2,7 +2,7 @@
 Dispatcher for the PyMap Library.
 """
 from pymap import Config, Scanner, Scraper
-from pymap.models import NetboxTransport, Device, DeviceType, DeviceRole, Site, Manufacturer
+from pymap.models import NetboxTransport, Device, DeviceType, DeviceRole, Site, Manufacturer, Interface
 from pymap.utils import get_netmiko_device_type
 
 
@@ -20,6 +20,7 @@ class PyMap():
 
     def scan(self):
         """Initiate the scanner."""
+        print('Starting the NMAP scan against {} targets.'.format(len(self.config.targets)))
         self.nmap_hosts = self.scanner.scan()
         self.populate_scan()
         print('Scan Complete.')
@@ -46,24 +47,7 @@ class PyMap():
                 device = Device(transport, scraper.get_hostname(), device_type, device_role,
                                 site, host.address)
 
+                for interface in scraper.get_interfaces():
+                    Interface(transport, interface.get('interface'), interface.get('description'), device)
+
                 self.netbox_hosts.append(device)
-
-    def populate_scan_old(self):
-        """Populate the scan results."""
-        transport = NetboxTransport(self.config.netbox_url, self.config.netbox_token)
-        site = Site(transport, self.config.site.get('name'), self.config.site.get('description'))
-        print('=' * 30 + '150.136.204.164' + '=' * 30)
-        manufacturer = Manufacturer(transport, 'Cisco')
-
-        device_type = DeviceType(transport, 'IOS', manufacturer, 'IOS')
-
-        device_role = DeviceRole(transport, 'router')
-
-        scraper = Scraper('150.136.204.164', self.config.ssh_username, self.config.ssh_password,
-                          get_netmiko_device_type('Cisco',
-                                                  'IOS'))
-
-        device = Device(transport, 'csr1', device_type, device_role,
-                        site, '150.136.204.164')
-
-        self.netbox_hosts.append(device)

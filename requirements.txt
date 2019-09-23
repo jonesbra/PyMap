@@ -4,3 +4,4 @@ pynetbox
 pyyaml
 requests
 netmiko
+ntc_templates

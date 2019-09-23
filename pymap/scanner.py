@@ -1,6 +1,8 @@
 """
 Scanner for the PyMap Environment.
 """
+import time
+
 from libnmap.process import NmapProcess
 from libnmap.parser import NmapParser as LibNmapParser
 
@@ -39,6 +41,12 @@ class Scanner():
     def scan(self):
         """Do a scan on the network."""
         nmap_process = NmapProcess(self.targets, options='-A')
-        nmap_process.run()
+        nmap_process.run_background()
+        while nmap_process.is_running():
+            print("Nmap Scan running: ETC: {0} DONE: {1}%".format(nmap_process.etc,
+                                                                  nmap_process.progress))
+            time.sleep(2)
+
+        print("rc: {0} output: {1}".format(nmap_process.rc, nmap_process.summary))
         nmap_report = NmapParser(nmap_process.stdout)
         return nmap_report.hosts

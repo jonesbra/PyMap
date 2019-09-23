@@ -27,7 +27,7 @@ class NetboxTransport():
         for key, value in response.json().items():
             if key not in CLASS_MAPPER:
                 obj.repr[key] = value
-        time.sleep(3)
+        time.sleep(0.5)
         obj.alive = True
         return response
 
@@ -87,11 +87,11 @@ class NetboxObject():
                 if all(item in obj.items() for item in self.repr.items()):
                     print('- {} already exists on Netbox.'.format(type(self).__name__))
                     self.repr = obj
-                else:
-                    self.create()
-        else:
+                    self.alive = True
+
+        if not self.alive:
             self.create()
-        self.alive = True
+            self.alive = True
 
     def create(self):
         print('- Creating {} on Netbox.'.format(type(self).__name__))
@@ -122,7 +122,6 @@ class Device(NetboxObject):
                 del tmp_obj['device_role']
                 del tmp_obj['primary_ip']
                 del tmp_obj['site']
-
                 if all(item in obj.items() for item in tmp_obj.items()):
                     print('- {} already exists on Netbox.'.format(type(self).__name__))
                     obj['device_type'] = self.repr['device_type']
@@ -130,6 +129,7 @@ class Device(NetboxObject):
                     obj['primary_ip'] = self.repr['primary_ip']
                     obj['site'] = self.repr['site']
                     self.repr = obj
+                    break
                 else:
                     self.create()
         else:
@@ -216,7 +216,20 @@ class Manufacturer(NetboxObject):
         }
         super().__init__(transport, representation, '/dcim/manufacturers/')
 
+
+class Interface(NetboxObject):
+    """Class representation of a Netbox Interface."""
+    def __init__(self, transport, name, description, device):
+        representation = {
+            'name': name,
+            'device': device,
+            'description': description
+        }
+        super().__init__(transport, representation, '/dcim/interfaces/')
+
+
 CLASS_MAPPER = {
+    'device': Device,
     'device_type': DeviceType,
     'device_role': DeviceRole,
     'site': Site,
