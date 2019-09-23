@@ -10,35 +10,56 @@ import urllib
 class NetboxTransport():
     """Define the transport mechanism between script and Netbox API."""
     def __init__(self, url, token):
+        print('- Creating Netbox Transport object with URL: ' + url)
         self.url = url
         self.token = token
+        self.headers = {
+            'Authorization': 'Token {}'.format(self.token),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
 
     def post(self, obj):
         """Post the object to Netbox instance."""
-        headers = {'Authorization': 'Token {}'.format(self.token)}
-        print(obj.json_repr())
-        response = requests.post(self.url + obj.post_url, json=obj.dict_repr(), headers=headers)
-        print(response.text)
+        print('- Issuing POST: ' + self.url + obj.api_route)
+        print('\tData:')
+        print(obj.dict_repr())
+        print('\n')
+        response = requests.post(self.url + obj.api_route, json=obj.dict_repr(),
+                                 headers=self.headers)
+        print('Response:')
+        print(response.json())
+        print('\n')
         for key, value in response.json().items():
             if key not in CLASS_MAPPER:
                 obj.repr[key] = value
-        print('Request Complete')
-        print('\n\n')
-        time.sleep(5)
+        time.sleep(3)
         obj.alive = True
+
+    def get(self, obj):
+        """Get the object's URL from Netbox instance."""
+        print('- Issuing GET: ' + self.url + obj.api_route)
+        response = requests.get(self.url + obj.api_route, headers=self.headers)
+        print('Response:')
+        print(response.json())
+        return response
 
 
 class NetboxObject():
     """Representation of a Netbox object."""
-    def __init__(self):
+    def __init__(self, transport, representation, api_route):
+        print('\n- Creating Netbox object: ' + type(self).__name__)
+        self.transport = transport
+        self.repr = representation
+        self.api_route = api_route
         self.alive = False  # Whether or not the device is "alive" on Netbox
-
-        self.repr = dict()
 
         # Make sure all arguments that represent other Netbox objects are correct type.
         for field in self.__dict__:
             if field in CLASS_MAPPER:
                 assert isinstance(getattr(self, field), CLASS_MAPPER[field])
+
+        self.validate_alive() # Determine if the object is already alive on Netbox
 
     def json_repr(self):
         """Get a JSON representation of the object."""
@@ -61,12 +82,35 @@ class NetboxObject():
             return self.dict_repr().get('id')
         raise Exception('Can not get id of object.')
 
+    def validate_alive(self):
+        """Determine if device is already alive on Netbox."""
+        print('- Determining if {} object already lives on Netbox.'.format(type(self).__name__))
+        response = self.transport.get(self)
+        if isinstance(response.json().get('results'), list):
+            # Determine if all object properties already exist in some object in response.
+            for response_obj in response.json().get('results'):
+                print('Comparing response with self')
+                print('Response: ')
+                print(response_obj)
+                print('\n')
+                print('Self:')
+                print(self.dict_repr())
+                print('\n')
+                if all(item in response_obj.items() for item in self.dict_repr().items()):
+                    print('- Self is a subset of response.')
+                    self.repr = response_obj
+                    self.alive = True
+                else:
+                    print('- Self is NOT a subset of response.')
+        if not self.alive:
+            print('- Object isnt currently alive on Netbox.')
+            self.transport.post(self)
+
 
 class Device(NetboxObject):
     """Class representation of a Netbox Device."""
-    def __init__(self, hostname, device_type, device_role, site, primary_ip):
-        super().__init__()
-        self.repr = {
+    def __init__(self, transport, hostname, device_type, device_role, site, primary_ip):
+        representation = {
             'name': hostname,
             'display_name': hostname,
             'device_type': device_type,
@@ -74,65 +118,51 @@ class Device(NetboxObject):
             'site': site,
             'primary_ip': primary_ip
         }
-
-        self.post_url = '/dcim/devices/'
-        self.get_url = '/dcim/devices/{id}'
+        super().__init__(transport, representation, '/dcim/devices/')
 
 
 class DeviceType(NetboxObject):
     """Class representation of a Netbox Device Type."""
-    def __init__(self, name, manufacturer, model):
-        super().__init__()
-        self.repr = {
+    def __init__(self, transport, name, manufacturer, model):
+        representation = {
             'display_name': name,
             'slug': name,
             'manufacturer': manufacturer,
             'model': model
         }
-
-        self.post_url = '/dcim/device-types/'
-        self.get_url = '/dcim/device-types/{id}'
+        super().__init__(transport, representation, '/dcim/device-types/')
 
 
 class DeviceRole(NetboxObject):
     """Class representation of a Netbox Device Role."""
-    def __init__(self, name):
-        super().__init__()
-        self.repr = {
+    def __init__(self, transport, name):
+        representation = {
             'name': name,
             'slug': name,
             'color': "%06x" % random.randint(0, 0xFFFFFF)
         }
-
-        self.post_url = '/dcim/device-roles/'
-        self.get_url = '/dcim/device-roles/{id}'
+        super().__init__(transport, representation, '/dcim/device-roles/')
 
 
 class Site(NetboxObject):
     """Class representation of a Netbox Site."""
-    def __init__(self, name, description):
-        super().__init__()
-        self.repr = {
+    def __init__(self, transport, name, description):
+        representation = {
             'name': name,
             'slug': name,
             'description': description
         }
-
-        self.post_url = '/dcim/sites/'
-        self.get_url = '/dcim/sites/{id}'
+        super().__init__(transport, representation, '/dcim/sites/')
 
 
 class Manufacturer(NetboxObject):
     """Class representation of a Netbox Manufacturer."""
-    def __init__(self, name):
-        super().__init__()
-        self.repr = {
+    def __init__(self, transport, name):
+        representation = {
             'name': name,
             'slug': name
         }
-
-        self.post_url = '/dcim/manufacturers/'
-        self.get_url = '/dcim/manufacturers/{id}'
+        super().__init__(transport, representation, '/dcim/manufacturers/')
 
 
 CLASS_MAPPER = {
